@@ -27,6 +27,11 @@ data(package="curatedBladderData")
 # Run tests, correction
 # plot heat map of DE genes
 
+############
+# Paper focuses on cancer and healthy subjects, but we could have some fun and look
+# at some differences by the other variables, such as gender and what not as a step
+# in determining which are significant between cancers.
+
 # Load data
 data(GSE31189_eset)
 a1 = GSE31189_eset
