@@ -7,8 +7,30 @@ library(curatedBladderData)
 browseVignettes("curatedBladderData")
 data(package="curatedBladderData")
 
-# Link to a good reference paper
-# https://www.ncbi.nlm.nih.gov/pubmed/15930339
+### Which dataset to use? 
+
+##########################################
+### GSE31189 has the most phenotypic data
+
+# Link to the reference paper
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3537330/pdf/nihms415409.pdf
+
+###################
+# Paper doesn't have much that is terribly interesting,
+# but data was used for biomarkers, could be really good 
+# for clustering, meat maps, PCA?
+# Will definitely need to do some adjustments for multiple testing
+
+#### Possible approach
+# Determine which genes are differentially expressed
+# Use PCA and clustering in EDA for this approach
+# Run tests, correction
+# plot heat map of DE genes
 
 # Load data
-data(GSE1827_eset)
+data(GSE31189_eset)
+a1 = GSE31189_eset
+
+## Expressions have negative values. Assuming they are normalized.
+rexp = exprs(a1)
+
