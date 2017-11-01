@@ -39,3 +39,10 @@ a1 = GSE31189_eset
 ## Expressions have negative values. Assuming they are normalized.
 rexp = exprs(a1)
 
+
+
+####### Suggested to use limma (lmFit, etc) to fit model, find prediction
+### Mike will give us code
+library(limma)
+
+cancer = as.vector((regexpr("Non-Cancer", phenoData(a1)$alt_sample_name) - 1) / -2)
