@@ -33,16 +33,21 @@ data(package="curatedBladderData")
 # in determining which are significant between cancers.
 
 # Load data
-data(GSE31189_eset)
-a1 = GSE31189_eset
+# Cancer/No Cancer - GSE31189
 
-## Expressions have negative values. Assuming they are normalized.
-rexp = exprs(a1)
-
-
+## Note on ages in GSE1827 - there is a patient that is supposedly 113 years old... Possibly remove?
+data(GSE1827_eset)
+a1 = GSE1827_eset
 
 ####### Suggested to use limma (lmFit, etc) to fit model, find prediction
 ### Mike will give us code
 library(limma)
 
-cancer = as.vector((regexpr("Non-Cancer", phenoData(a1)$alt_sample_name) - 1) / -2)
+eSet = exprs(a1)
+tumType = pData(a1)$summarystage
+age = pData(a1)$age
+gender = pData(a1)$gender
+design <- model.matrix(~ tumType)
+fit <- lmFit(eSet, design)
+fit <- eBayes(fit)
+tab <- topTable(fit, n=nrow(eSet), sort.by="none")
