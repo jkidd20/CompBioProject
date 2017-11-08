@@ -39,45 +39,51 @@ data(package="curatedBladderData")
 data(GSE1827_eset)
 a1 = GSE1827_eset
 
-####### Suggested to use limma (lmFit, etc) to fit model, find prediction
-### Mike will give us code
+#### Finding differentially expressed genes on training sample of subset patients
 set.seed(2017)
 library(limma)
 
-eSet = exprs(a1)
+diffExpTable = function(trainSize = 30, expData){
 
-invNum = which(pData(a1)$summarystage == "invasive")
-supNum = which(pData(a1)$summarystage == "superficial")
+  eSet = exprs(expData)
+  
+  invNum = which(pData(expData)$summarystage == "invasive")
+  supNum = which(pData(expData)$summarystage == "superficial")
+  
+  trainSamp = c(sample(invNum, trainSize / 2), sample(supNum, trainSize / 2))
+  predSamp = seq_len(ncol(expData))[!(seq_len(ncol(expData)) %in% trainSamp)]
+  
+  toTrain = expData[, trainSamp]
+  
+  tumType = pData(toTrain)$summarystage
+  design <- model.matrix(~ tumType)
+  train.eSet = exprs(toTrain)
+  
+  fit <- lmFit(train.eSet, design)
+  fit <- eBayes(fit)
+  tab <- topTable(fit, n=nrow(eSet), sort.by="none")
+  
+  return(list(predSamp = predSamp, geneTable = tab))
+}
 
-trainSamp = c(sample(invNum, 15), sample(supNum, 15))
-predSamp = seq_len(ncol(a1))[!(seq_len(ncol(a1)) %in% trainSamp)]
+try1 = diffExpTable(30, a1)
 
-toTrain = a1[, trainSamp]
-
-tumType = pData(toTrain)$summarystage
-design <- model.matrix(~ tumType)
-train.eSet = exprs(toTrain)
-
-fit <- lmFit(train.eSet, design)
-fit <- eBayes(fit)
-tab <- topTable(fit, n=nrow(eSet), sort.by="none")
-
-
-bigSet.g = rownames(tab)[tab$adj.P.Val < 0.001 & !is.na(tab$adj.P.Val)]
-smallSet.g = rownames(tab)[tab$adj.P.Val < 0.0001 & !is.na(tab$adj.P.Val)]
-
-
-toPred = a1[, predSamp]
+### Prediction data sets
+toPred = a1[, try1$predSamp]
 toPred.expr.t = data.frame(exprs(toPred))
 toPred.stage = pData(toPred)$summarystage
+
+
+### Gene sets to use
+bigSet.g = rownames(try1$geneTable)[try1$geneTable$adj.P.Val < 0.001 & !is.na(try1$geneTable$adj.P.Val)]
+smallSet.g = rownames(try1$geneTable)[try1$geneTable$adj.P.Val < 0.0001 & !is.na(try1$geneTable$adj.P.Val)]
+
+
 # impute missing values
 library(caret)
 library(e1071)
 imputedV = preProcess(toPred.expr.t, method = "knnImpute")
 toPred.expr.imp = predict(imputedV, toPred.expr.t)
-
-toPred.bigexp = exprs(toPred)[rownames(toPred) %in% bigSet.g, ] 
-toPred.smallexp = exprs(toPred)[rownames(toPred) %in% smallSet.g, ] 
 
 ##### Prediction testing
 
