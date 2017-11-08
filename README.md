@@ -21,3 +21,9 @@ Goal #1 (Gene Set selections)
 Goal #2 (Predictions)
 -Using gene sets from #1, use different methods and cross validation sizes to predict
 
+
+
+Steps forward from Nov 8:
+-Each work with/play around with goals 1 and 2
+-At next meet work on comparing different gene sets we get for #1
+      - Also compare different methods
