@@ -16,6 +16,7 @@ Goal #1 (Gene Set selections)
     -> find set of genes predictive of this outcome (not controlling for anything)
 -Use multiple p-value cutoffs (.001, .0001) and compare the results
 -Use different sample sizes
+-Compare to random and row variance selections
 
 
 Goal #2 (Predictions)
