@@ -52,7 +52,7 @@ geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", i
         }
       }
       else{
-        genes[[i]] = gsub('-', '.', sample(rownames(tab), nSelect))
+        genes[[i]] = gsub('-', '.', sample(rownames(expData), nSelect))
       }
       
       smallTrain = cbind(trainDF[, 1], trainDF[, colnames(trainDF) %in% genes[[i]]])
