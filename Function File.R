@@ -2,8 +2,10 @@
 library(limma)
 library(caret)
 library(e1071)
+library(pheatmap)
+library(RColorBrewer)
 
-geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", impMethod = "knnImpute", 
+geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", impMethod = "medianImpute", 
                   randomFlag = FALSE, nSelect = NA){
     eSet.t = exprs(expData)
     label = as.factor(label)
@@ -12,8 +14,8 @@ geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", i
     g2Num = which(label == labLev[2])
     
     ### Imputation
-    imputedV = preProcess(eSet.t, method = impMethod)
-    eSet = predict(imputedV, eSet.t)
+    imputedV = preProcess(t(eSet.t), method = impMethod)
+    eSet = t(predict(imputedV, t(eSet.t)))
     
     ### Cross Validation
     toSample1 = matrix(1:nFold, 1, length(g1Num))
@@ -65,10 +67,43 @@ geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", i
       predValues = predict(mFit, testDF)
       numWrong[i] = sum(as.character(predValues) != as.character(testDF$label))
     }
-    return(list(genes = genes, cvError = mean(numWrong / table(c(cvNum1, cvNum2)))))
+    return(list(genes = genes, cvError = mean(numWrong / table(c(cvNum1, cvNum2))), 
+                impMethod = impMethod, label = label))
 }
 
 
+
+
+pheatmap(distmat, color=cols,
+         clustering_distance_rows=dists,
+         clustering_distance_cols=dists,
+         annotation_col=df,
+         show_rownames=FALSE, show_colnames=FALSE)
+
+#### Function to create heatmaps from first function
+myMap = function(cvRes, expData, titleIn = "", occur = 1){
+  plotGenes = names(table(unlist(cvRes$genes)))[table(unlist(cvRes$genes)) >= occur]
+
+  eSet.t = exprs(expData)
+  label = cvRes$label
+  labLev = levels(label)
+  
+  ### Imputation
+  imputedV = preProcess(t(eSet.t), method = cvRes$impMethod)
+  eSet = t(predict(imputedV, t(eSet.t)))
+  
+  dists = dist(t(eSet))
+  cols <- colorRampPalette(rev(brewer.pal(9,"RdBu")))(255)
+  distmat <- as.matrix(dists)
+  df <- data.frame(condition=label,
+                   row.names=colnames(distmat))
+  
+  eSet.plot = eSet[gsub('-', '.', rownames(expData)) %in% plotGenes, ]
+
+  pheatmap(eSet.plot, color=cols,
+           annotation_col=df,
+           show_rownames=FALSE, show_colnames=FALSE)
+  }
 
 # ##### Old Functions
 # diffExpTable = function(trainSize = 30, expData){

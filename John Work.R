@@ -5,40 +5,153 @@ library(curatedBladderData)
 data(GSE1827_eset)
 a1 = GSE1827_eset
 
-johnTry = diffExpTable(30, a1)
+#geneCV(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", 
+#           impMethod = "knnImpute", randomFlag = FALSE, nSelect = NA)
 
-toPred = a1[, johnTry$predSamp]
-toPred.expr.t = data.frame(exprs(toPred))
-toPred.stage = pData(toPred)$summarystage
+wholeTime = proc.time()
+set.seed(2017)
+# p value cut offs
+tTime = Sys.time()
+ss.p1.rf = geneCV(a1, pData(a1)$summarystage)
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.p1.ada = geneCV(a1, pData(a1)$summarystage, fitMethod = "ada")
+# Sys.time() - tTime
+tTime = Sys.time()
+ss.p1.glmb = geneCV(a1, pData(a1)$summarystage, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.p1.adab = geneCV(a1, pData(a1)$summarystage, fitMethod = "adaboost")
+# Sys.time() - tTime
 
+tTime = Sys.time()
+ss.p2.rf = geneCV(a1, pData(a1)$summarystage, pCut = 0.00001)
+Sys.time() - tTime
+#tTime = Sys.time()
+#ss.p2.ada = geneCV(a1, pData(a1)$summarystage, pCut = 0.00001, fitMethod = "ada")
+#Sys.time() - tTime
+tTime = Sys.time()
+ss.p2.glmb = geneCV(a1, pData(a1)$summarystage, pCut = 0.00001, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.p2.adab = geneCV(a1, pData(a1)$summarystage, pCut = 0.00001, fitMethod = "adaboost")
+# Sys.time() - tTime
 
-### Gene sets to use
-gSet1 = rownames(johnTry$geneTable)[johnTry$geneTable$adj.P.Val < 0.00001 & !is.na(johnTry$geneTable$adj.P.Val)]
-gSet2 = rownames(johnTry$geneTable)[johnTry$geneTable$adj.P.Val < 0.0001 & !is.na(johnTry$geneTable$adj.P.Val)]
-gSet3 = rownames(johnTry$geneTable)[johnTry$geneTable$adj.P.Val < 0.001 & !is.na(johnTry$geneTable$adj.P.Val)]
-gSet4 = rownames(johnTry$geneTable)[johnTry$geneTable$adj.P.Val < 0.01 & !is.na(johnTry$geneTable$adj.P.Val)]
-gSet5 = rownames(johnTry$geneTable)[johnTry$geneTable$adj.P.Val < 0.1 & !is.na(johnTry$geneTable$adj.P.Val)]
-gSet6 = rownames(johnTry$geneTable)[johnTry$geneTable$adj.P.Val < 1.1 & !is.na(johnTry$geneTable$adj.P.Val)]
+tTime = Sys.time()
+ss.p3.rf = geneCV(a1, pData(a1)$summarystage, pCut = 0.0001)
+Sys.time() - tTime
+#tTime = Sys.time()
+#ss.p3.ada = geneCV(a1, pData(a1)$summarystage, pCut = 0.0001, fitMethod = "ada")
+#Sys.time() - tTime
+tTime = Sys.time()
+ss.p3.glmb = geneCV(a1, pData(a1)$summarystage, pCut = 0.0001, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.p3.adab = geneCV(a1, pData(a1)$summarystage, pCut = 0.0001, fitMethod = "adaboost")
+# Sys.time() - tTime
 
+tTime = Sys.time()
+ss.p4.rf = geneCV(a1, pData(a1)$summarystage, pCut = 0.001)
+Sys.time() - tTime
+#tTime = Sys.time()
+#ss.p4.ada = geneCV(a1, pData(a1)$summarystage, pCut = 0.001, fitMethod = "ada")
+#Sys.time() - tTime
+tTime = Sys.time()
+ss.p4.glmb = geneCV(a1, pData(a1)$summarystage, pCut = 0.001, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.p4.adab = geneCV(a1, pData(a1)$summarystage, pCut = 0.001, fitMethod = "adaboost")
+# Sys.time() - tTime
 
-# impute missing values
-library(caret)
-library(e1071)
-imputedV = preProcess(toPred.expr.t, method = "knnImpute")
-toPred.expr.imp = predict(imputedV, toPred.expr.t)
+### Most Significant
+tTime = Sys.time() 
+ss.ns1.rf = geneCV(a1, pData(a1)$summarystage, nSelect = 50)
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.ns1.ada = geneCV(a1, pData(a1)$summarystage, nSelect = 50, fitMethod = "ada")
+# Sys.time() - tTime
+tTime = Sys.time()
+ss.ns1.glmb = geneCV(a1, pData(a1)$summarystage, nSelect = 50, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.ns1.adab = geneCV(a1, pData(a1)$summarystage, nSelect = 50, fitMethod = "adaboost")
+# Sys.time() - tTime
 
-#Random Forests
-cvError(gSet1, toPred.stage, toPred.expr.imp)
-cvError(gSet2, toPred.stage, toPred.expr.imp)
-cvError(gSet3, toPred.stage, toPred.expr.imp)
-cvError(gSet4, toPred.stage, toPred.expr.imp)
-cvError(gSet5, toPred.stage, toPred.expr.imp)
-cvError(gSet6, toPred.stage, toPred.expr.imp)
+tTime = Sys.time()
+ss.ns2.rf = geneCV(a1, pData(a1)$summarystage, nSelect = 100)
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.ns2.ada = geneCV(a1, pData(a1)$summarystage, nSelect = 100, fitMethod = "ada")
+# Sys.time() - tTime
+tTime = Sys.time()
+ss.ns2.glmb = geneCV(a1, pData(a1)$summarystage, nSelect = 100, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.ns2.adab = geneCV(a1, pData(a1)$summarystage, nSelect = 100, fitMethod = "adaboost")
+# Sys.time() - tTime
 
-# logistic regression
-cvError(gSet1, toPred.stage, toPred.expr.imp, fitMethod = "glmboost")
-cvError(gSet2, toPred.stage, toPred.expr.imp, fitMethod = "glmboost")
-cvError(gSet3, toPred.stage, toPred.expr.imp, fitMethod = "glmboost")
-cvError(gSet4, toPred.stage, toPred.expr.imp, fitMethod = "glmboost")
-cvError(gSet5, toPred.stage, toPred.expr.imp, fitMethod = "glmboost")
-cvError(gSet6, toPred.stage, toPred.expr.imp, fitMethod = "glmboost")
+tTime = Sys.time()
+ss.ns3.rf = geneCV(a1, pData(a1)$summarystage, nSelect = 200)
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.ns3.ada = geneCV(a1, pData(a1)$summarystage, nSelect = 200, fitMethod = "ada")
+# Sys.time() - tTime
+tTime = Sys.time()
+ss.ns3.glmb = geneCV(a1, pData(a1)$summarystage, nSelect = 200, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.ns3.adab = geneCV(a1, pData(a1)$summarystage, nSelect = 200, fitMethod = "adaboost")
+# Sys.time() - tTime
+
+# Randomly Selected
+tTime = Sys.time()
+ss.rs1.rf = geneCV(a1, pData(a1)$summarystage, nSelect = 50, randomFlag = TRUE)
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.rs1.ada = geneCV(a1, pData(a1)$summarystage, nSelect = 50, 
+#                     randomFlag = TRUE, fitMethod = "ada")
+# Sys.time() - tTime
+tTime = Sys.time()
+ss.rs1.glmb = geneCV(a1, pData(a1)$summarystage, nSelect = 50,
+                     randomFlag = TRUE, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.rs1.adab = geneCV(a1, pData(a1)$summarystage, nSelect = 50,
+#                      randomFlag = TRUE, fitMethod = "adaboost")
+# Sys.time() - tTime
+
+tTime = Sys.time()
+ss.rs2.rf = geneCV(a1, pData(a1)$summarystage, nSelect = 100)
+Sys.time() - tTime
+#tTime = Sys.time()
+#ss.rs2.ada = geneCV(a1, pData(a1)$summarystage, nSelect = 100,
+#                    randomFlag = TRUE, fitMethod = "ada")
+#Sys.time() - tTime
+tTime = Sys.time()
+ss.rs2.glmb = geneCV(a1, pData(a1)$summarystage, nSelect = 100,
+                     randomFlag = TRUE, fitMethod = "glmboost")
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.rs2.adab = geneCV(a1, pData(a1)$summarystage, nSelect = 100,
+#                      randomFlag = TRUE, fitMethod = "adaboost")
+# Sys.time() - tTime
+
+tTime = Sys.time()
+ss.rs3.rf = geneCV(a1, pData(a1)$summarystage, nSelect = 200, randomFlag = TRUE)
+Sys.time() - tTime
+# tTime = Sys.time()
+# ss.rs3.ada = geneCV(a1, pData(a1)$summarystage, nSelect = 200,
+#                     randomFlag = TRUE, fitMethod = "ada")
+# Sys.time() - tTime
+tTime = Sys.time()
+ss.rs3.glmb = geneCV(a1, pData(a1)$summarystage, nSelect = 200,
+                     randomFlag = TRUE, fitMethod = "glmboost")
+Sys.time() - tTime
+#tTime = Sys.time()
+#ss.rs3.adab = geneCV(a1, pData(a1)$summarystage, nSelect = 200,
+#                     randomFlag = TRUE, fitMethod = "adaboost")
+#Sys.time() - tTime
+
+fullTime = wholeTime = proc.time()
+
+#### heatmaps
