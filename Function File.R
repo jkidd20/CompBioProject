@@ -72,14 +72,6 @@ geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", i
 }
 
 
-
-
-pheatmap(distmat, color=cols,
-         clustering_distance_rows=dists,
-         clustering_distance_cols=dists,
-         annotation_col=df,
-         show_rownames=FALSE, show_colnames=FALSE)
-
 #### Function to create heatmaps from first function
 myMap = function(cvRes, expData, titleIn = "", occur = 1){
   plotGenes = names(table(unlist(cvRes$genes)))[table(unlist(cvRes$genes)) >= occur]
