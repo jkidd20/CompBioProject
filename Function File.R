@@ -93,7 +93,7 @@ myMap = function(cvRes, expData, titleIn = "", occur = 1){
   eSet.plot = eSet[gsub('-', '.', rownames(expData)) %in% plotGenes, ]
 
   pheatmap(eSet.plot, color=cols,
-           annotation_col=df,
+           annotation_col=df, main = titleIn,
            show_rownames=FALSE, show_colnames=FALSE)
   }
 
