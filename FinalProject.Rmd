@@ -1,0 +1,38 @@
+---
+title: "Final Project - Curated Bladder Data"
+author: "John Kidd, Ben Pokaprakarn, Sarah Reifeis"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output: html_document
+---
+
+Our group topic is “cancer genomics”, and we worked with the curatedBladderData dataset for this project, specifically attempting to mimic results from this [paper](https://www.ncbi.nlm.nih.gov/pubmed/15930339). To give you a little background on why we care about bladder cancer, we have some info below from the American Cancer Society to bring it into focus.
+
+# Context for Bladder Cancer
+The [American Cancer Society](https://www.cancer.org/cancer/bladder-cancer/about/key-statistics.html) estimates that there will be around 80,000 new cases of bladder cancer in the US in 2017, constituting appromximately 5% of all new cancer cases. Of these, men are expected to be affected at 3 times the rate of women, and there are about 17,000 total deaths expected.
+
+Bladder cancer tumors can be divided into two groups: superficial and muscle-invasive. This relates to staging of cancer (0/a, 1, 2, 3, 4) as follows. Generally, the “0” or “a” stage & “1” are considered superficial tumors because they haven’t yet invaded the muscular wall of the bladder; stage “2” is characterized by the tumor invading the muscle wall of the bladder, and so stage “2” and beyond are classified as muscle-invasive tumors. Around half of all bladder cancers are first detected before becoming muscle-invasive. 
+
+# Background on Our Data
+The particular dataset we chose to use in the curatedBladderData collection contains gene expression of 6225 genes for each of 80 subjects with bladder tumors. Some covariates of interest that we make use of later on are tumor subtype (superficial, muscle-invasive) and tumor stage. 
+
+As we began working with the dataset, it became apparent that there was an abundance of missing data for gene expression. o	In figuring out how to deal with this, we plotted gene expression standard deviation against the number of subjects with missing values for each gene. 
+
+```{r}
+# Ben, could you please put the code here that generates the plot on slide 3?
+```
+
+As you can see, there is still a lot of variance in some genes with a lot of missing data, so we don’t want to throw this info away. Hence, we made the decision to use median imputation to impute gene expression across genes for the remainder of our project. 
+
+The 80 bladder tumors were obtained frozen from the tissue bank of the UCSF Comprehensive Cancer Center, and the tumors were staged according to professionals from the American Joint Committee on Cancer. Of note, the paper mentioned above claims that the 80 tumors can be broken up into 17 stage a, 10 stage 1, 15 stage 2, 25 stage 3, and 13 stage 4. However, upon examining the data ourselves, we believe this to be a typo in the paper or there may be an error present in the dataset. From the dataset we used, we have that there are 17 stage a, 10 stage 1, 14 stage 2, 26 stage 3, and 13 stage 4, and this is the data we will use for the remainder of our project.
+
+# Roadmap
+We have 3 main objectives that we will cover throughout this project:
+
+Firstly, we attempt to recreate a cluster dendrogram to resemble Fig 1 in the paper mentioned above. Several methods for clustering will be explored and compared to Fig 1 of the paper. 
+
+Secondly, we investigate differences in gene expression levels for superficial and muscle-invasive tumors using heatmaps. In the paper, they created a heatmap (Fig 2) using an unspecified subset of around 2k genes (same set they used to create their cluster dendrogram). We didn’t have a way to find out what these genes were, so we created several of our own subsets and generated heatmaps and compared them. 
+
+Thirdly, we fit our subsets of genes using various methods to predict, based on expression, whether each tumor should be classified as superficial or muscle-invasive. We then used 5-fold cross-validation to obtain a "mis-classification" rate for each combination of fitting method and gene subset. 
+
+
+
