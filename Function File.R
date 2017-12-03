@@ -6,7 +6,7 @@ library(pheatmap)
 library(RColorBrewer)
 
 geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", impMethod = "medianImpute", 
-                  randomFlag = FALSE, nSelect = NA){
+                  randomFlag = FALSE, nSelect = NA, nrep = 10){
     eSet.t = exprs(expData)
     label = as.factor(label)
     labLev = levels(label)
@@ -17,64 +17,80 @@ geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", i
     imputedV = preProcess(t(eSet.t), method = impMethod)
     eSet = t(predict(imputedV, t(eSet.t)))
     
-    ### Cross Validation
-    toSample1 = matrix(1:nFold, 1, length(g1Num))
-    cvNum1 = sample(toSample1)
-    toSample2 = matrix(1:nFold, 1, length(g2Num))
-    cvNum2 = sample(toSample2)
-    
-    numWrong = rep(0, nFold)
-    genes = list()
-    
-    for(i in 1:nFold){
-      # set up Train and Test set
-      trainLabels = c(rep(labLev[1], sum(cvNum1 != i)), rep(labLev[2], sum(cvNum2 != i)))
-      testLabels = c(rep(labLev[1], sum(cvNum1 == i)), rep(labLev[2], sum(cvNum2 == i)))
+    retValue = list()
+    for(repNum in seq_len(nrep)){
+      ### Cross Validation
+      toSample1 = matrix(1:nFold, 1, length(g1Num))
+      cvNum1 = sample(toSample1)
+      toSample2 = matrix(1:nFold, 1, length(g2Num))
+      cvNum2 = sample(toSample2)
       
-      trainExprs = rbind(t(eSet)[g1Num[cvNum1 != i], ], t(eSet)[g2Num[cvNum2 != i], ])
-      testExprs = rbind(t(eSet)[g1Num[cvNum1 == i], ], t(eSet)[g2Num[cvNum2 == i], ])
+      numWrong = rep(0, nFold)
+      genes = list()
       
-      
-      trainDF = data.frame(trainLabels, trainExprs)
-      testDF = data.frame(testLabels, testExprs)
-      
-      colnames(trainDF)[1] = colnames(testDF)[1] = "label"
-      
-      # train data
-      if(!randomFlag){
-        design <- model.matrix(~ trainDF[, 1])
-        fit <- lmFit(t(trainExprs), design)
-        fit <- eBayes(fit)
-        tab <- topTable(fit, n=nrow(eSet), sort.by="none")
-        if(is.na(nSelect)){
-          genes[[i]] = gsub('-', '.', rownames(tab)[tab$adj.P.Val < pCut])
+      for(i in 1:nFold){
+        # set up Train and Test set
+        trainLabels = c(rep(labLev[1], sum(cvNum1 != i)), rep(labLev[2], sum(cvNum2 != i)))
+        testLabels = c(rep(labLev[1], sum(cvNum1 == i)), rep(labLev[2], sum(cvNum2 == i)))
+        
+        trainExprs = rbind(t(eSet)[g1Num[cvNum1 != i], ], t(eSet)[g2Num[cvNum2 != i], ])
+        testExprs = rbind(t(eSet)[g1Num[cvNum1 == i], ], t(eSet)[g2Num[cvNum2 == i], ])
+        
+        
+        trainDF = data.frame(trainLabels, trainExprs)
+        testDF = data.frame(testLabels, testExprs)
+        
+        colnames(trainDF)[1] = colnames(testDF)[1] = "label"
+        
+        # train data
+        if(!randomFlag){
+          design <- model.matrix(~ trainDF[, 1])
+          fit <- lmFit(t(trainExprs), design)
+          fit <- eBayes(fit)
+          tab <- topTable(fit, n=nrow(eSet), sort.by="none")
+          if(is.na(nSelect)){
+            genes[[i]] = gsub('-', '.', rownames(tab)[tab$adj.P.Val < pCut])
+          }
+          else{
+            genes[[i]] = gsub('-', '.', rownames(tab[order(tab$adj.P.Val),])[1:nSelect])
+          }
         }
         else{
-          genes[[i]] = gsub('-', '.', rownames(tab[order(tab$adj.P.Val),])[1:nSelect])
+          genes[[i]] = gsub('-', '.', sample(rownames(expData), nSelect))
         }
+        
+        smallTrain = cbind(trainDF[, 1], trainDF[, colnames(trainDF) %in% genes[[i]]])
+        colnames(smallTrain)[1] = "label"
+        
+        mFit = train(label ~ ., data = smallTrain, method = fitMethod)
+        
+        # Predict on Test
+        
+        predValues = predict(mFit, testDF)
+        numWrong[i] = sum(as.character(predValues) != as.character(testDF$label))
       }
-      else{
-        genes[[i]] = gsub('-', '.', sample(rownames(expData), nSelect))
-      }
-      
-      smallTrain = cbind(trainDF[, 1], trainDF[, colnames(trainDF) %in% genes[[i]]])
-      colnames(smallTrain)[1] = "label"
-      
-      mFit = train(label ~ ., data = smallTrain, method = fitMethod)
-      
-      # Predict on Test
-      
-      predValues = predict(mFit, testDF)
-      numWrong[i] = sum(as.character(predValues) != as.character(testDF$label))
+      retValue[[repNum]] = list(genes = genes, cvError = mean(numWrong / table(c(cvNum1, cvNum2))), 
+                       impMethod = impMethod, label = label)
     }
-    return(list(genes = genes, cvError = mean(numWrong / table(c(cvNum1, cvNum2))), 
-                impMethod = impMethod, label = label))
+    return(retValue)
 }
 
+aveCVerror = function(geneCVres){
+  aveCVerror = 0
+  for(i in seq_len(length(geneCVres))){
+    aveCVerror = aveCVerror + geneCVres[[i]]$cvError
+  }
+  return(aveCVerror / length(geneCVres))
+}
 
 #### Function to create heatmaps from first function
 myMap = function(cvRes, expData, titleIn = "", occur = 1){
-  plotGenes = names(table(unlist(cvRes$genes)))[table(unlist(cvRes$genes)) >= occur]
+  plotGenes = NULL
+  for(i in seq_len(length(cvRes))){
+    plotGenes = c(plotGenes, 
+              names(table(unlist(cvRes[[i]]$genes)))[table(unlist(cvRes[[i]]$genes)) >= occur])
+  }
+  plotGenes = names(table(plotGenes))
 
   eSet.t = exprs(expData)
   label = cvRes$label
