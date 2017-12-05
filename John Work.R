@@ -107,7 +107,7 @@ ss.rs3.svm = geneCV(a1, pData(a1)$summarystage, nSelect = 200,
 fullTime = proc.time() - wholeTime
 
 # #### heatmaps
-# myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Once", occur = 1)
+myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Once", occur = 1)
 # myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occurs Twice", occur = 2)
 # myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occurs in All", occur = 5)
 # 

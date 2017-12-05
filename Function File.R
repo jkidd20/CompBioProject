@@ -86,6 +86,7 @@ aveCVerror = function(geneCVres){
 #### Function to create heatmaps from first function
 myMap = function(cvRes, expData, titleIn = "", occur = 1){
   plotGenes = NULL
+  
   for(i in seq_len(length(cvRes))){
     plotGenes = c(plotGenes, 
               names(table(unlist(cvRes[[i]]$genes)))[table(unlist(cvRes[[i]]$genes)) >= occur])
@@ -93,11 +94,11 @@ myMap = function(cvRes, expData, titleIn = "", occur = 1){
   plotGenes = names(table(plotGenes))
 
   eSet.t = exprs(expData)
-  label = cvRes$label
+  label = cvRes[[1]]$label
   labLev = levels(label)
   
   ### Imputation
-  imputedV = preProcess(t(eSet.t), method = cvRes$impMethod)
+  imputedV = preProcess(t(eSet.t), method = cvRes[[1]]$impMethod)
   eSet = t(predict(imputedV, t(eSet.t)))
   
   dists = dist(t(eSet))

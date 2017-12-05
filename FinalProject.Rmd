@@ -32,7 +32,224 @@ Firstly, we attempt to recreate a cluster dendrogram to resemble Fig 1 in the pa
 
 Secondly, we investigate differences in gene expression levels for superficial and muscle-invasive tumors using heatmaps. In the paper, they created a heatmap (Fig 2) using an unspecified subset of around 2k genes (same set they used to create their cluster dendrogram). We didn't have a way to find out what these genes were, so we created several of our own subsets and generated heatmaps and compared them. 
 
-Thirdly, we fit our subsets of genes using various methods to predict, based on expression, whether each tumor should be classified as superficial or muscle-invasive. We then used 5-fold cross-validation to obtain a mis-classification rate for each combination of fitting method and gene subset. 
+Thirdly, we fit our subsets of genes using various methods to predict, based on expression, whether each tumor should be classified as superficial or muscle-invasive. We then used 5-fold cross-validation to obtain a mis-classification rate for each combination of fitting method and gene subset. To try and get a more accurate measurment of the true mis-classification rate, we run 10 cross-validations and take the average error across the 10 iterations. 
+
+# Heatmaps
+```{r setup, echo = FALSE, message=FALSE, warning=FALSE}
+set.seed(784)
+#Functions then calls
+library(curatedBladderData)
+library(limma)
+library(caret)
+library(e1071)
+library(pheatmap)
+library(RColorBrewer)
+
+geneCV = function(expData, label, pCut = .000001, nFold = 5, fitMethod = "rf", impMethod = "medianImpute", 
+                  randomFlag = FALSE, nSelect = NA, nrep = 10){
+    eSet.t = exprs(expData)
+    label = as.factor(label)
+    labLev = levels(label)
+    g1Num = which(label == labLev[1])
+    g2Num = which(label == labLev[2])
+    
+    ### Imputation
+    imputedV = preProcess(t(eSet.t), method = impMethod)
+    eSet = t(predict(imputedV, t(eSet.t)))
+    
+    retValue = list()
+    for(repNum in seq_len(nrep)){
+      ### Cross Validation
+      toSample1 = matrix(1:nFold, 1, length(g1Num))
+      cvNum1 = sample(toSample1)
+      toSample2 = matrix(1:nFold, 1, length(g2Num))
+      cvNum2 = sample(toSample2)
+      
+      numWrong = rep(0, nFold)
+      genes = list()
+      
+      for(i in 1:nFold){
+        # set up Train and Test set
+        trainLabels = c(rep(labLev[1], sum(cvNum1 != i)), rep(labLev[2], sum(cvNum2 != i)))
+        testLabels = c(rep(labLev[1], sum(cvNum1 == i)), rep(labLev[2], sum(cvNum2 == i)))
+        
+        trainExprs = rbind(t(eSet)[g1Num[cvNum1 != i], ], t(eSet)[g2Num[cvNum2 != i], ])
+        testExprs = rbind(t(eSet)[g1Num[cvNum1 == i], ], t(eSet)[g2Num[cvNum2 == i], ])
+        
+        
+        trainDF = data.frame(trainLabels, trainExprs)
+        testDF = data.frame(testLabels, testExprs)
+        
+        colnames(trainDF)[1] = colnames(testDF)[1] = "label"
+        
+        # train data
+        if(!randomFlag){
+          design <- model.matrix(~ trainDF[, 1])
+          fit <- lmFit(t(trainExprs), design)
+          fit <- eBayes(fit)
+          tab <- topTable(fit, n=nrow(eSet), sort.by="none")
+          if(is.na(nSelect)){
+            genes[[i]] = gsub('-', '.', rownames(tab)[tab$adj.P.Val < pCut])
+          }
+          else{
+            genes[[i]] = gsub('-', '.', rownames(tab[order(tab$adj.P.Val),])[1:nSelect])
+          }
+        }
+        else{
+          genes[[i]] = gsub('-', '.', sample(rownames(expData), nSelect))
+        }
+        
+        smallTrain = cbind(trainDF[, 1], trainDF[, colnames(trainDF) %in% genes[[i]]])
+        colnames(smallTrain)[1] = "label"
+        
+        mFit = train(label ~ ., data = smallTrain, method = fitMethod)
+        
+        # Predict on Test
+        
+        predValues = predict(mFit, testDF)
+        numWrong[i] = sum(as.character(predValues) != as.character(testDF$label))
+      }
+      retValue[[repNum]] = list(genes = genes, cvError = mean(numWrong / table(c(cvNum1, cvNum2))), 
+                       impMethod = impMethod, label = label)
+    }
+    return(retValue)
+}
+
+aveCVerror = function(geneCVres){
+  aveCVerror = 0
+  for(i in seq_len(length(geneCVres))){
+    aveCVerror = aveCVerror + geneCVres[[i]]$cvError
+  }
+  return(aveCVerror / length(geneCVres))
+}
+
+#### Function to create heatmaps from first function
+myMap = function(cvRes, expData, titleIn = "", occur = 1){
+  plotGenes = NULL
+  
+  for(i in seq_len(length(cvRes))){
+    plotGenes = c(plotGenes, 
+              names(table(unlist(cvRes[[i]]$genes)))[table(unlist(cvRes[[i]]$genes)) >= occur])
+  }
+  plotGenes = names(table(plotGenes))
+
+  eSet.t = exprs(expData)
+  label = cvRes[[1]]$label
+  labLev = levels(label)
+  
+  ### Imputation
+  imputedV = preProcess(t(eSet.t), method = cvRes[[1]]$impMethod)
+  eSet = t(predict(imputedV, t(eSet.t)))
+  
+  dists = dist(t(eSet))
+  cols <- colorRampPalette(rev(brewer.pal(9,"RdBu")))(255)
+  distmat <- as.matrix(dists)
+  df <- data.frame(condition=label,
+                   row.names=colnames(distmat))
+  
+  eSet.plot = eSet[gsub('-', '.', rownames(expData)) %in% plotGenes, ]
+
+  pheatmap(eSet.plot, color=cols,
+           annotation_col=df, main = titleIn,
+           show_rownames=FALSE, show_colnames=FALSE)
+  }
+
+
+
+data(GSE1827_eset)
+a1 = GSE1827_eset
+
+# Top p-values
+ss.p1.rf = geneCV(a1, pData(a1)$summarystage)
+ss.p1.glmb = geneCV(a1, pData(a1)$summarystage, fitMethod = "glmboost")
+
+ss.p2.rf = geneCV(a1, pData(a1)$summarystage, pCut = 0.00001)
+ss.p2.glmb = geneCV(a1, pData(a1)$summarystage, pCut = 0.00001, fitMethod = "glmboost")
+
+### Most Significant
+ss.ns1.rf = geneCV(a1, pData(a1)$summarystage, nSelect = 50)
+ss.ns1.glmb = geneCV(a1, pData(a1)$summarystage, nSelect = 50, fitMethod = "glmboost")
+
+# Randomly Selected
+ss.rs1.rf = geneCV(a1, pData(a1)$summarystage, nSelect = 50, randomFlag = TRUE)
+ss.rs1.glmb = geneCV(a1, pData(a1)$summarystage, nSelect = 50,
+                     randomFlag = TRUE, fitMethod = "glmboost")
+
+ss.p1.svm = geneCV(a1, pData(a1)$summarystage, fitMethod = "svmLinearWeights")
+ss.p2.svm = geneCV(a1, pData(a1)$summarystage, pCut = 0.00001, fitMethod = "svmLinearWeights")
+ss.ns1.svm = geneCV(a1, pData(a1)$summarystage, nSelect = 50, fitMethod = "svmLinearWeights")
+ss.rs1.svm = geneCV(a1, pData(a1)$summarystage, nSelect = 50, 
+                    randomFlag = TRUE, fitMethod = "svmLinearWeights")
+
+resMat = matrix(NA, nrow = 3, ncol = 4)
+
+resMat[1, 1] = aveCVerror(ss.p1.rf)
+resMat[1, 2] = aveCVerror(ss.p2.rf)
+resMat[1, 3] = aveCVerror(ss.ns1.rf)
+resMat[1, 4] = aveCVerror(ss.rs1.rf)
+resMat[2, 1] = aveCVerror(ss.p1.glmb)
+resMat[2, 2] = aveCVerror(ss.p2.glmb)
+resMat[2, 3] = aveCVerror(ss.ns1.glmb)
+resMat[2, 4] = aveCVerror(ss.rs1.glmb)
+resMat[3, 1] = aveCVerror(ss.p1.svm)
+resMat[3, 2] = aveCVerror(ss.p2.svm)
+resMat[3, 3] = aveCVerror(ss.ns1.svm)
+resMat[3, 4] = aveCVerror(ss.rs1.svm)
+
+colnames(resMat) = c("p<0.000001", "p<0.00001", "Top 50", "Random 50")
+rownames(resMat) = c("Random Forest", "GLM Boost", "SVM")
+```
+
+To try and determine different genes that are important in distinguishing the difference between the superficial and muscle-invasive tumors, we use the cross-validation proceedure described above to find certain sets of genes. With 5-fold cross-validation repeated 10 times, we have 10 potential sets of "important" genes. Within each run, we can select genes that are considered differentially expressed once, twice, or any number up to all five times. 
+
+We try this below and see some interesting items. It should be noted that in these plots, there may be some genes with extreme values, which will cause the general pattern to become faded. This flaw unfortunately was unable to be addressed at this time.
+
+Firstly, we look at the sets of genes selected as differentially expressed with a p-value cutoff of 0.000001. We consider three different subsets of the selected genes based upon the number of times the gene was considered differentially expressed: 1, 2, 5. It should be mentioned again that occuring 5 times means that any gene that was included in all 5 folds of any of the 10 repetitions will be included.
+
+```{r heatmaps1, echo = FALSE, message = FALSE}
+myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Once", occur = 1)
+myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Twice", occur = 2)
+myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occurs in All", occur = 5)
+```
+
+We notice that a more distinct patter seems to appear as we limit the number of genes that are included. This may be due to some genes simply being noise in the larger sets, or may also be due to some washing out of gene expression levels due to higher scales of some included genes (as can be seen in the legend). 
+
+We look further and consider a couple of graphs where the cutoff for the p-value is not as extreme. 
+
+```{r heatmaps2, echo = FALSE, message = FALSE}
+myMap(ss.p2.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.0001) - Occur Once", occur = 1)
+myMap(ss.p2.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.0001) - Occurs in All", occur = 5)
+```
+
+Here we again see a similar story to what was seen with the more extreme p-value cut-off. 
+
+Finally, we consider a random selection of genes to see if we see a distinct pattern between the two tumor types. If this is the case, then we either would need to conclude that all of the genes are impacted by the tumor type (which may be indicative of a potential batch effect), or that even a random sample is good at differentiating between the two tumor types. We randomly select 50 genes for this map. For a good comparison, we select the 50 "most significant" differentially expressed genes and create another heatmap to see if there is a difference between the two. In either, we use any gene selected in any fold, giving us ~250 randomly selected genes in the random heat map (possibly less if the same gene was selected in more than one fold).
+
+```{r heatmaps3, echo = FALSE, message = FALSE}
+myMap(ss.rs1.rf, a1, titleIn = "50 Randomly Selected Genes", occur = 1)
+myMap(ss.ns1.rf, a1, titleIn = "50 Most Significant Genes - Occurs Once", occur = 1)
+```
+
+We do not see a clear distinction in the randomly selected genes. Rather, we see a fairly even color scheme across all subjects. However, we do see a good distinction in the most significant genes. Thus, it does appear that modeling and the analysis are worthwhile in this pursuit.
+
+# Cross-Validation Errors
+
+Finally, we consider the predictive ability of several methods using several approaches to selecting genes. Here, we use Random Forests, GLM Boosting, and Support Vector Machines. Within these, we use a selection proceedure as used above on the heatmaps to determine which genes should be used in the model. Namely, we select all genes in a fold considered differentially expressed (p-value less than 0.000001, and 0.00001), the 50 genes with the smallest p-values, and 50 randomly sampled genes. We can see in Table \ref{tab:cvRes} the results. 
+
+```{r cvRes, echo = FALSE}
+library(knitr)
+kable(resMat, caption = "\\label{tab:cvRes}CV Results", align ='c')
+```
+
+We see the best results using Random Forests with the slightly larger set of genes (p < 0.00001). Random Forests does perform the best with the smallest set of genes (Top 50), and all methods perform worst using the random draw. However, we do see fairly remarkable accuracy with the random draw, which might again indicate a potential batch effect in the data. Or it may be that a single gene that is differentially expressed is randomly included and does manage to provide enough information for these methods to make some distinction. 
+
+Of additional note, GLM Boosting appears to perform similarly well across all selections of related genes, SVM performs better with a larger set of genes, and performs the worst with the random draw.
+
+# Conclusion
+
+Thus, we can see that many methods exist that can be used to determine differences between superficial and muscle-invasive tumors. While remarkable, the random sampling method does not perform as well as other methods, indicating that information is available in the gene expressions, and differences do exist between the tumor types. 
+
+
 
 
 
