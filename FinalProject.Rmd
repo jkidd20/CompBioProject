@@ -5,17 +5,17 @@ date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output: html_document
 ---
 
-Our group topic is cancer genomics, and we worked with the curatedBladderData dataset for this project, specifically attempting to mimic results from this [paper](https://www.ncbi.nlm.nih.gov/pubmed/15930339). To give you a little background on why we care about bladder cancer, we have some info below from the American Cancer Society to bring it into focus.
+Our group topic is cancer genomics, and we worked with the curatedBladderData data set for this project, specifically attempting to mimic results from this [paper](https://www.ncbi.nlm.nih.gov/pubmed/15930339). To give you a little background on why we care about bladder cancer, we have some info below from the American Cancer Society to bring it into focus.
 
 # Context for Bladder Cancer
-The [American Cancer Society](https://www.cancer.org/cancer/bladder-cancer/about/key-statistics.html) estimates that there will be around 80,000 new cases of bladder cancer in the US in 2017, constituting appromximately 5% of all new cancer cases. Of these, men are expected to be affected at 3 times the rate of women, and there are about 17,000 total deaths expected.
+The [American Cancer Society](https://www.cancer.org/cancer/bladder-cancer/about/key-statistics.html) estimates that there will be around 80,000 new cases of bladder cancer in the US in 2017, constituting approximately 5% of all new cancer cases. Of these, men are expected to be affected at 3 times the rate of women, and there are about 17,000 total deaths expected.
 
 Bladder cancer tumors can be divided into two groups: superficial and muscle-invasive. This relates to staging of cancer (0/a, 1, 2, 3, 4) as follows. Generally, the 0 or a stage & 1 are considered superficial tumors because they haven't yet invaded the muscular wall of the bladder; stage 2 is characterized by the tumor invading the muscle wall of the bladder, and so stage 2 and beyond are classified as muscle-invasive tumors. Around half of all bladder cancers are first detected before becoming muscle-invasive. 
 
 # Background on Our Data
-The particular dataset we chose to use in the curatedBladderData collection contains gene expression of 6225 genes for each of 80 subjects with bladder tumors. Some covariates of interest that we make use of later on are tumor subtype (superficial, muscle-invasive) and tumor stage. 
+The particular data set we chose to use in the curatedBladderData collection contains gene expression of 6225 genes for each of 80 subjects with bladder tumors. Some covariates of interest that we make use of later on are tumor subtype (superficial, muscle-invasive) and tumor stage. 
 
-As we began working with the dataset, it became apparent that there was an abundance of missing data for gene expression. In figuring out how to deal with this, we plotted gene expression standard deviation against the number of subjects with missing values for each gene. 
+As we began working with the data set, it became apparent that there was an abundance of missing data for gene expression. In figuring out how to deal with this, we plotted gene expression standard deviation against the number of subjects with missing values for each gene. 
 
 ```{r echo = FALSE,message=FALSE, warning=FALSE}
 library(curatedBladderData)
@@ -32,7 +32,7 @@ plot(sqrt(rowVars(eSet, na.rm=TRUE)), rowSums(is.na(eSet)), xlab="Standard devia
 
 As you can see, there is still a lot of variance in some genes with a lot of missing data, so we don't want to throw this info away. Hence, we made the decision to use median imputation to impute gene expression across genes for the remainder of our project. 
 
-The 80 bladder tumors were obtained frozen from the tissue bank of the UCSF Comprehensive Cancer Center, and the tumors were staged according to professionals from the American Joint Committee on Cancer. Of note, the paper mentioned above claims that the 80 tumors can be broken up into 17 stage a, 10 stage 1, 15 stage 2, 25 stage 3, and 13 stage 4. However, upon examining the data ourselves, we believe this to be a typo in the paper or there may be an error present in the dataset. From the dataset we used, we have that there are 17 stage a, 10 stage 1, 14 stage 2, 26 stage 3, and 13 stage 4, and this is the data we will use for the remainder of our project.
+The 80 bladder tumors were obtained frozen from the tissue bank of the UCSF Comprehensive Cancer Center, and the tumors were staged according to professionals from the American Joint Committee on Cancer. Of note, the paper mentioned above claims that the 80 tumors can be broken up into 17 stage a, 10 stage 1, 15 stage 2, 25 stage 3, and 13 stage 4. However, upon examining the data ourselves, we believe this to be a typo in the paper or there may be an error present in the data set. From the data set we used, we have that there are 17 stage a, 10 stage 1, 14 stage 2, 26 stage 3, and 13 stage 4, and this is the data we will use for the remainder of our project.
 
 # Roadmap
 We have 3 main objectives that we will cover throughout this project:
@@ -41,7 +41,7 @@ Firstly, we attempt to recreate a cluster dendrogram to resemble Fig 1 in the pa
 
 Secondly, we investigate differences in gene expression levels for superficial and muscle-invasive tumors using heatmaps. In the paper, they created a heatmap (Fig 2) using an unspecified subset of around 2k genes (same set they used to create their cluster dendrogram). We didn't have a way to find out what these genes were, so we created several of our own subsets and generated heatmaps and compared them. 
 
-Thirdly, we fit our subsets of genes using various methods to predict, based on expression, whether each tumor should be classified as superficial or muscle-invasive. We then used 5-fold cross-validation to obtain a mis-classification rate for each combination of fitting method and gene subset. To try and get a more accurate measurment of the true mis-classification rate, we run 10 cross-validations and take the average error across the 10 iterations. 
+Thirdly, we fit our subsets of genes using various methods to predict, based on expression, whether each tumor should be classified as superficial or muscle-invasive. We then used 5-fold cross-validation to obtain a mis-classification rate for each combination of fitting method and gene subset. To try and get a more accurate measurement of the true mis-classification rate, we run 10 cross-validations and take the average error across the 10 iterations. 
 
 ## Preprocessing done by the paper
 
@@ -85,7 +85,7 @@ Filtering: we just select top 100 genes with highest variance (before imputing);
 Imputation: Median impute
 
 ##### Second approach:
-Nonmissing genes only (621 genes left); 
+Non-missing genes only (621 genes left); 
 
 10 principal components
 
@@ -104,7 +104,6 @@ imputedV = preProcess(t(eSet), method = "medianImpute")
 eSet.imputed = t(predict(imputedV, t(eSet)))
 
 dists2 = dist(t(eSet.imputed[head(o, 100), ]))
-dim(as.matrix(dists2))
 
 palette(brewer.pal(8, "RdBu"))
 hc = hclust(dists2, method = "ward.D2")
@@ -141,7 +140,7 @@ table(cluster, pData(a1)$summarystage)
 table(cluster, pData(a1)$histological_type)
 table(cluster, pData(a1)$T)
 ```
-We see here that the two clusters are distinct in terms of the proportion of superficial and muscle-invasive tumor. we only have 6 misclassification (5 in superficial and 1 in muscle invasive). Note also that all the 'squamous' histological type tumor are in the same cluster. This is consistent with the results reported by the paper which also have 6 similar misclassification. This shows that at least in this example, the result is not sensitive to the choice of filtering, imputation, and clustering algorithm. We can still clearly distinguish the superficial and the muscle invasive tumor based on the unsupervised cluster.
+We see here that the two clusters are distinct in terms of the proportion of superficial and muscle-invasive tumor. we only have 6 misclassifications (5 in superficial and 1 in muscle invasive). Note also that all the 'squamous' histological type tumor are in the same cluster. This is consistent with the results reported by the paper which also have 6 similar misclassifications. This shows that at least in this example, the result is not sensitive to the choice of filtering, imputation, and clustering algorithm. We can still clearly distinguish the superficial and the muscle invasive tumor based on the unsupervised cluster.
 
 ## Clustering with only 10 Principal Components
 ```{r , echo = FALSE, message=FALSE, warning=FALSE}
@@ -173,12 +172,12 @@ colored_bars(colors.bar, dend, rowLabels = "Tumor type", sort_by_labels_order = 
 
 ```
 
-```{r}
+```{r, echo = FALSE}
 cluster <- cutree(hc, k=2)
 table(cluster, pData(a1)$summarystage)
 ```
 
-Here we also have 6 misclassification (4 in superficial and 2 in muscle invasive). This shows that even with just 10 prinicipal components based on the 621 non-missing genes compared to the 2,675 genes the paper uses after filtering, we can still have two distinct clusters with the same misclassifications.
+Here we also have 6 misclassifications (4 in superficial and 2 in muscle invasive). This shows that even with just 10 principle components based on the 621 non-missing genes compared to the 2,675 genes the paper uses after filtering, we can still have two distinct clusters with the same misclassifications.
 
 ## Clustering with 500 random genes
 ```{r, echo = FALSE, message=FALSE, warning=FALSE}
@@ -206,13 +205,13 @@ plot(dend)
 title(main = "Hclust with top 500 random genes")
 ```
 
-An example of a hierachical cluster of 500 random genes. We can still see that there are two distinct clusters.
+An example of a hierarchical cluster of 500 random genes. We can still see that there are two distinct clusters.
 
 ```{r, echo = FALSE, message=FALSE, warning=FALSE}
 hist(error.list,freq=TRUE,main="Histogram of Number of Misclassifications")
 ```
 
-The histogram shows that 80 percent of the times when we randomly select 500 genes, we still obtain less than 10 misclassification. This shows that there might be some batch effect across the genes between the two types of tumors because even when we randomly pick genes, we can still differentiate the two types of tumor. Another possible explanation is that there are signals in a lot of these genes and therefore even when we randomly pick, we are still getting some signals.
+The histogram shows that 80 percent of the times when we randomly select 500 genes, we still obtain less than 10 misclassifications. This shows that there might be some batch effect across the genes between the two types of tumors because even when we randomly pick genes, we can still differentiate the two types of tumor. Another possible explanation is that there are signals in a lot of these genes and therefore even when we randomly pick, we are still getting some signals.
 
 # Heatmaps
 ```{r setup, echo = FALSE, message=FALSE, warning=FALSE, eval=FALSE}
@@ -380,11 +379,11 @@ colnames(resMat) = c("p<0.000001", "p<0.00001", "Top 50", "Random 50")
 rownames(resMat) = c("Random Forest", "GLM Boost", "SVM")
 ```
 
-To try and determine different genes that are important in distinguishing the difference between the superficial and muscle-invasive tumors, we use the cross-validation proceedure described above to find certain sets of genes. With 5-fold cross-validation repeated 10 times, we have 10 potential sets of "important" genes. Within each run, we can select genes that are considered differentially expressed once, twice, or any number up to all five times. 
+To try and determine different genes that are important in distinguishing the difference between the superficial and muscle-invasive tumors, we use the cross-validation procedure described above to find certain sets of genes. With 5-fold cross-validation repeated 10 times, we have 10 potential sets of "important" genes. Within each run, we can select genes that are considered differntially expressed once, twice, or any number up to all five times. 
 
 We try this below and see some interesting items. It should be noted that in these plots, there may be some genes with extreme values, which will cause the general pattern to become faded. This flaw unfortunately was unable to be addressed at this time.
 
-Firstly, we look at the sets of genes selected as differentially expressed with a p-value cutoff of 0.000001. We consider three different subsets of the selected genes based upon the number of times the gene was considered differentially expressed: 1, 2, 5. It should be mentioned again that occuring 5 times means that any gene that was included in all 5 folds of any of the 10 repetitions will be included.
+Firstly, we look at the sets of genes selected as differntially expressed with a p-value cutoff of 0.000001. We consider three different subsets of the selected genes based upon the number of times the gene was considered differntially expressed: 1, 2, 5. It should be mentioned again that occurring 5 times means that any gene that was included in all 5 folds of any of the 10 repetitions will be included.
 
 ```{r heatmaps1, echo = FALSE, message = FALSE, eval=FALSE}
 myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Once", occur = 1)
@@ -403,7 +402,7 @@ myMap(ss.p2.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.0001) - Occ
 
 Here we again see a similar story to what was seen with the more extreme p-value cut-off. 
 
-Finally, we consider a random selection of genes to see if we see a distinct pattern between the two tumor types. If this is the case, then we either would need to conclude that all of the genes are impacted by the tumor type (which may be indicative of a potential batch effect), or that even a random sample is good at differentiating between the two tumor types. We randomly select 50 genes for this map. For a good comparison, we select the 50 "most significant" differentially expressed genes and create another heatmap to see if there is a difference between the two. In either, we use any gene selected in any fold, giving us ~250 randomly selected genes in the random heat map (possibly less if the same gene was selected in more than one fold).
+Finally, we consider a random selection of genes to see if we see a distinct pattern between the two tumor types. If this is the case, then we either would need to conclude that all of the genes are impacted by the tumor type (which may be indicative of a potential batch effect), or that even a random sample is good at differentiating between the two tumor types. We randomly select 50 genes for this map. For a good comparison, we select the 50 "most significant" differntially expressed genes and create another heatmap to see if there is a difference between the two. In either, we use any gene selected in any fold, giving us ~250 randomly selected genes in the random heat map (possibly less if the same gene was selected in more than one fold).
 
 ```{r heatmaps3, echo = FALSE, message = FALSE, eval=FALSE}
 myMap(ss.rs1.rf, a1, titleIn = "50 Randomly Selected Genes", occur = 1)
@@ -414,14 +413,14 @@ We do not see a clear distinction in the randomly selected genes. Rather, we see
 
 # Cross-Validation Errors
 
-Finally, we consider the predictive ability of several methods using several approaches to selecting genes. Here, we use Random Forests, GLM Boosting, and Support Vector Machines. Within these, we use a selection proceedure as used above on the heatmaps to determine which genes should be used in the model. Namely, we select all genes in a fold considered differentially expressed (p-value less than 0.000001, and 0.00001), the 50 genes with the smallest p-values, and 50 randomly sampled genes. We can see in Table \ref{tab:cvRes} the results. 
+Finally, we consider the predictive ability of several methods using several approaches to selecting genes. Here, we use Random Forests, GLM Boosting, and Support Vector Machines. Within these, we use a selection procedure as used above on the heatmaps to determine which genes should be used in the model. Namely, we select all genes in a fold considered differntially expressed (p-value less than 0.000001, and 0.00001), the 50 genes with the smallest p-values, and 50 randomly sampled genes. We can see in Table \ref{tab:cvRes} the results. 
 
 ```{r cvRes, echo = FALSE, eval=FALSE}
 library(knitr)
 kable(resMat, caption = "\\label{tab:cvRes}CV Results", align ='c')
 ```
 
-We see the best results using Random Forests with the slightly larger set of genes (p < 0.00001). Random Forests does perform the best with the smallest set of genes (Top 50), and all methods perform worst using the random draw. However, we do see fairly remarkable accuracy with the random draw, which might again indicate a potential batch effect in the data. Or it may be that a single gene that is differentially expressed is randomly included and does manage to provide enough information for these methods to make some distinction. 
+We see the best results using Random Forests with the slightly larger set of genes (p < 0.00001). Random Forests does perform the best with the smallest set of genes (Top 50), and all methods perform worst using the random draw. However, we do see fairly remarkable accuracy with the random draw, which might again indicate a potential batch effect in the data. Or it may be that a single gene that is differntially expressed is randomly included and does manage to provide enough information for these methods to make some distinction. 
 
 Of additional note, GLM Boosting appears to perform similarly well across all selections of related genes, SVM performs better with a larger set of genes, and performs the worst with the random draw.
 
