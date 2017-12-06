@@ -1,6 +1,6 @@
 ---
 title: "Final Project - Curated Bladder Data"
-author: "John Kidd, Ben Pokaprakarn, Sarah Reifeis"
+author: "John Kidd, Teeranan(Ben) Pokaprakarn, Sarah Reifeis"
 date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output: html_document
 ---
@@ -17,8 +17,17 @@ The particular dataset we chose to use in the curatedBladderData collection cont
 
 As we began working with the dataset, it became apparent that there was an abundance of missing data for gene expression. In figuring out how to deal with this, we plotted gene expression standard deviation against the number of subjects with missing values for each gene. 
 
-```{r}
-# Ben, could you please put the code here that generates the plot on slide 3?
+```{r echo = FALSE,message=FALSE, warning=FALSE}
+library(curatedBladderData)
+library(dendextend)
+library(RColorBrewer)
+library(matrixStats)
+library(caret)
+data("GSE1827_eset")
+a1 = GSE1827_eset
+eSet = exprs(a1)
+plot(sqrt(rowVars(eSet, na.rm=TRUE)), rowSums(is.na(eSet)), xlab="Standard deviation",ylab="Number of subjects with missing values for each gene")
+
 ```
 
 As you can see, there is still a lot of variance in some genes with a lot of missing data, so we don't want to throw this info away. Hence, we made the decision to use median imputation to impute gene expression across genes for the remainder of our project. 
@@ -34,8 +43,179 @@ Secondly, we investigate differences in gene expression levels for superficial a
 
 Thirdly, we fit our subsets of genes using various methods to predict, based on expression, whether each tumor should be classified as superficial or muscle-invasive. We then used 5-fold cross-validation to obtain a mis-classification rate for each combination of fitting method and gene subset. To try and get a more accurate measurment of the true mis-classification rate, we run 10 cross-validations and take the average error across the 10 iterations. 
 
+## Preprocessing done by the paper
+
+1. Signal intensity values of each element were extracted using the GenePix software.
+
+2. Intensities were then corrected by subarray median centering followed by global locally weighted scatterplot smoothing correction
+
+3. Values are normalized and median centered
+
+#Clusters
+In this section, we attempt to recreate Figure 1 in the paper with a few differences described below.
+
+```{r, echo=FALSE}
+library(knitr)
+knitr:: include_graphics("https://github.com/jkidd20/CompBioProject/blob/master/figure1_paper.png?raw=true")
+```
+
+
+### Clustering method from the paper
+1. Filtering of genes: log2 ratios were filtered to include only these clones showing expression ratios in at least 80% of samples analyzed
+Only clones that had |log2 ratio|>2 in at least one sample were used
+
+2. Unsupervised hierarchical clustering
+
+3. Linkage method: Average linkage (join clusters whose avg distance are the smallest)
+
+4. Distance/Similarity matrix: uncentered Pearson correlation metric
+
+5. Bottom-up clustering direction
+
+### Justification for our method
+We cannot perform the filtering as described by the paper, hence we chose a few other ways from class we can try to reduce the number of dimensions. We also explore other methods of clustering in order to examine if the choices about the clustering algorithm with regards to imputation, filtering, and clustering method made by the author make a difference in the validity of the result. In other words, we examine if the validity of the claim in the paper is sensitive to these choices.
+
+### What we did
+
+We try three different approaches of clustering with different choices of how we select the genes to include, and the imputation. We also use a slightly different clustering algorithm from the paper. We chose hierarchical clustering with ward's method.
+
+##### First approach: 
+Filtering: we just select top 100 genes with highest variance (before imputing); 
+
+Imputation: Median impute
+
+##### Second approach:
+Nonmissing genes only (621 genes left); 
+
+10 principal components
+
+##### Third approach
+
+Median Impute ; 500 random genes
+
+## Cluster with the top 100 genes with the highest variance
+
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+set.seed(1)
+rv = rowVars(eSet, na.rm = TRUE)
+o = order(rv, decreasing = TRUE)
+imputedV = preProcess(t(eSet), method = "medianImpute")
+eSet.imputed = t(predict(imputedV, t(eSet)))
+
+dists2 = dist(t(eSet.imputed[head(o, 100), ]))
+dim(as.matrix(dists2))
+
+palette(brewer.pal(8, "RdBu"))
+hc = hclust(dists2, method = "ward.D2")
+#how does it cluster with missing value
+library(dendextend)
+dend <- as.dendrogram(hc)
+o.dend <- order.dendrogram(dend)
+labels <- paste(colnames(a1)[o.dend], pData(a1)$summarystage[o.dend])
+#labels(dend) <- labels
+#labels(dend) <- pData(a1)$T[o.dend]
+#labels_colors(dend) <- 1*(pData(a1)$summarystage[o.dend] == "superficial") + 2
+labels(dend) <- paste(substr(colnames(a1)[o.dend],4,8) , substr(pData(a1)$histological_type[o.dend],1,3))
+colors <- rep(NA, length(pData(a1)$T))
+ordered.T <- pData(a1)$T[o.dend]
+colors[ordered.T < 2] <- ordered.T[ordered.T < 2] +1 
+colors[ordered.T >= 2] <- ordered.T[ordered.T >= 2]+4
+colors.bar <- rep(NA, length(pData(a1)$summarystage))
+ordered.stage <- pData(a1)$summarystage[o.dend]
+colors.bar[ordered.stage == "superficial"] <- "red"
+colors.bar[ordered.stage == "invasive"] <- "blue"
+labels_colors(dend) <- colors
+plot(dend, horiz = FALSE)
+title(main = "Hclust with top 100 genes with highest variance")
+legend("topleft", legend = 0:4, fill = sort(unique(colors)))
+colored_bars(colors.bar, dend, rowLabels = "Tumor type", sort_by_labels_order = FALSE)
+```
+
+Number 0 to 4 denote the stage of tumor. The red color in the colored bar at the bottom denotes superficial tumor (stage 0 and stage 1) while blue denotes the muscle invasive tumor. 'tcc' and 'squ' refers to the histological type.
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+
+cluster <- cutree(hc, k=2)
+table(cluster, pData(a1)$summarystage)
+table(cluster, pData(a1)$histological_type)
+table(cluster, pData(a1)$T)
+```
+We see here that the two clusters are distinct in terms of the proportion of superficial and muscle-invasive tumor. we only have 6 misclassification (5 in superficial and 1 in muscle invasive). Note also that all the 'squamous' histological type tumor are in the same cluster. This is consistent with the results reported by the paper which also have 6 similar misclassification. This shows that at least in this example, the result is not sensitive to the choice of filtering, imputation, and clustering algorithm. We can still clearly distinguish the superficial and the muscle invasive tumor based on the unsupervised cluster.
+
+## Clustering with only 10 Principal Components
+```{r , echo = FALSE, message=FALSE, warning=FALSE}
+set.seed(1)
+numMis = rowSums(is.na(eSet))
+eset.nonmissing <- eSet[numMis == 0, ]
+#Only have 621 gene left
+pc <- prcomp(t(eset.nonmissing))
+dists.pc = dist(pc$x[,1:10])
+palette(brewer.pal(8, "RdBu"))
+hc = hclust(dists.pc, method = "ward.D2")
+dend <- as.dendrogram(hc)
+o.dend <- order.dendrogram(dend)
+labels <- paste(colnames(a1)[o.dend], pData(a1)$summarystage[o.dend])
+labels(dend) <- paste(substr(colnames(a1)[o.dend],4,8) , substr(pData(a1)$histological_type[o.dend],1,3))
+colors <- rep(NA, length(pData(a1)$T))
+ordered.T <- pData(a1)$T[o.dend]
+colors[ordered.T < 2] <- ordered.T[ordered.T < 2] +1 
+colors[ordered.T >= 2] <- ordered.T[ordered.T >= 2]+4
+colors.bar <- rep(NA, length(pData(a1)$summarystage))
+ordered.stage <- pData(a1)$summarystage[o.dend]
+colors.bar[ordered.stage == "superficial"] <- "red"
+colors.bar[ordered.stage != "superficial"] <- "blue"
+labels_colors(dend) <- colors
+plot(dend, horiz = FALSE)
+title(main = "Hclust with top 10 principal components")
+legend("topleft", legend = 0:4, fill = sort(unique(colors)))
+colored_bars(colors.bar, dend, rowLabels = "Tumor type", sort_by_labels_order = FALSE)
+
+```
+
+```{r}
+cluster <- cutree(hc, k=2)
+table(cluster, pData(a1)$summarystage)
+```
+
+Here we also have 6 misclassification (4 in superficial and 2 in muscle invasive). This shows that even with just 10 prinicipal components based on the 621 non-missing genes compared to the 2,675 genes the paper uses after filtering, we can still have two distinct clusters with the same misclassifications.
+
+## Clustering with 500 random genes
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+set.seed(1)
+eSet2 = eSet.imputed
+num.genes <- dim(eSet2)[1]
+error.list <- c()
+for (i in 1:100){
+  sampled.genes <- sample(1:num.genes, size=500, replace = FALSE, prob = NULL)
+  eSet2.random <- eSet2[sampled.genes, ]
+  dists.random = dist(t(eSet2.random))
+  hc = hclust(dists.random, method = "ward.D2")
+  #how does it cluster with missing value
+  dend <- as.dendrogram(hc)
+  o.dend <- order.dendrogram(dend)
+  labels(dend) <- colnames(a1)[o.dend]
+  labels_colors(dend) <- 1*(pData(a1)$summarystage[o.dend] == "superficial") + 2
+  cluster <- cutree(hc, k=2)
+  conf.matrix <- table(cluster, pData(a1)$summarystage)
+  error <- conf.matrix[1,2]+conf.matrix[2,1]
+  error.list <- c(error.list,error)
+}
+palette(brewer.pal(8, "Dark2"))
+plot(dend)
+title(main = "Hclust with top 500 random genes")
+```
+
+An example of a hierachical cluster of 500 random genes. We can still see that there are two distinct clusters.
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+hist(error.list,freq=TRUE,main="Histogram of Number of Misclassifications")
+```
+
+The histogram shows that 80 percent of the times when we randomly select 500 genes, we still obtain less than 10 misclassification. This shows that there might be some batch effect across the genes between the two types of tumors because even when we randomly pick genes, we can still differentiate the two types of tumor. Another possible explanation is that there are signals in a lot of these genes and therefore even when we randomly pick, we are still getting some signals.
+
 # Heatmaps
-```{r setup, echo = FALSE, message=FALSE, warning=FALSE}
+```{r setup, echo = FALSE, message=FALSE, warning=FALSE, eval=FALSE}
 set.seed(784)
 #Functions then calls
 library(curatedBladderData)
@@ -206,7 +386,7 @@ We try this below and see some interesting items. It should be noted that in the
 
 Firstly, we look at the sets of genes selected as differentially expressed with a p-value cutoff of 0.000001. We consider three different subsets of the selected genes based upon the number of times the gene was considered differentially expressed: 1, 2, 5. It should be mentioned again that occuring 5 times means that any gene that was included in all 5 folds of any of the 10 repetitions will be included.
 
-```{r heatmaps1, echo = FALSE, message = FALSE}
+```{r heatmaps1, echo = FALSE, message = FALSE, eval=FALSE}
 myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Once", occur = 1)
 myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Twice", occur = 2)
 myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occurs in All", occur = 5)
@@ -216,7 +396,7 @@ We notice that a more distinct patter seems to appear as we limit the number of 
 
 We look further and consider a couple of graphs where the cutoff for the p-value is not as extreme. 
 
-```{r heatmaps2, echo = FALSE, message = FALSE}
+```{r heatmaps2, echo = FALSE, message = FALSE, eval=FALSE}
 myMap(ss.p2.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.0001) - Occur Once", occur = 1)
 myMap(ss.p2.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.0001) - Occurs in All", occur = 5)
 ```
@@ -225,7 +405,7 @@ Here we again see a similar story to what was seen with the more extreme p-value
 
 Finally, we consider a random selection of genes to see if we see a distinct pattern between the two tumor types. If this is the case, then we either would need to conclude that all of the genes are impacted by the tumor type (which may be indicative of a potential batch effect), or that even a random sample is good at differentiating between the two tumor types. We randomly select 50 genes for this map. For a good comparison, we select the 50 "most significant" differentially expressed genes and create another heatmap to see if there is a difference between the two. In either, we use any gene selected in any fold, giving us ~250 randomly selected genes in the random heat map (possibly less if the same gene was selected in more than one fold).
 
-```{r heatmaps3, echo = FALSE, message = FALSE}
+```{r heatmaps3, echo = FALSE, message = FALSE, eval=FALSE}
 myMap(ss.rs1.rf, a1, titleIn = "50 Randomly Selected Genes", occur = 1)
 myMap(ss.ns1.rf, a1, titleIn = "50 Most Significant Genes - Occurs Once", occur = 1)
 ```
@@ -236,7 +416,7 @@ We do not see a clear distinction in the randomly selected genes. Rather, we see
 
 Finally, we consider the predictive ability of several methods using several approaches to selecting genes. Here, we use Random Forests, GLM Boosting, and Support Vector Machines. Within these, we use a selection proceedure as used above on the heatmaps to determine which genes should be used in the model. Namely, we select all genes in a fold considered differentially expressed (p-value less than 0.000001, and 0.00001), the 50 genes with the smallest p-values, and 50 randomly sampled genes. We can see in Table \ref{tab:cvRes} the results. 
 
-```{r cvRes, echo = FALSE}
+```{r cvRes, echo = FALSE, eval=FALSE}
 library(knitr)
 kable(resMat, caption = "\\label{tab:cvRes}CV Results", align ='c')
 ```
