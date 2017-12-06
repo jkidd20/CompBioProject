@@ -214,7 +214,7 @@ hist(error.list,freq=TRUE,main="Histogram of Number of Misclassifications")
 The histogram shows that 80 percent of the times when we randomly select 500 genes, we still obtain less than 10 misclassifications. This shows that there might be some batch effect across the genes between the two types of tumors because even when we randomly pick genes, we can still differentiate the two types of tumor. Another possible explanation is that there are signals in a lot of these genes and therefore even when we randomly pick, we are still getting some signals.
 
 # Heatmaps
-```{r setup, echo = FALSE, message=FALSE, warning=FALSE, eval=FALSE}
+```{r setup, echo = FALSE, message=FALSE, warning=FALSE}
 set.seed(784)
 #Functions then calls
 library(curatedBladderData)
@@ -385,7 +385,7 @@ We try this below and see some interesting items. It should be noted that in the
 
 Firstly, we look at the sets of genes selected as differntially expressed with a p-value cutoff of 0.000001. We consider three different subsets of the selected genes based upon the number of times the gene was considered differntially expressed: 1, 2, 5. It should be mentioned again that occurring 5 times means that any gene that was included in all 5 folds of any of the 10 repetitions will be included.
 
-```{r heatmaps1, echo = FALSE, message = FALSE, eval=FALSE}
+```{r heatmaps1, echo = FALSE, message = FALSE}
 myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Once", occur = 1)
 myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occur Twice", occur = 2)
 myMap(ss.p1.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.00001) - Occurs in All", occur = 5)
@@ -395,7 +395,7 @@ We notice that a more distinct patter seems to appear as we limit the number of 
 
 We look further and consider a couple of graphs where the cutoff for the p-value is not as extreme. 
 
-```{r heatmaps2, echo = FALSE, message = FALSE, eval=FALSE}
+```{r heatmaps2, echo = FALSE, message = FALSE}
 myMap(ss.p2.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.0001) - Occur Once", occur = 1)
 myMap(ss.p2.rf, a1, titleIn = "Differentially Expressed Genes (p < 0.0001) - Occurs in All", occur = 5)
 ```
@@ -404,7 +404,7 @@ Here we again see a similar story to what was seen with the more extreme p-value
 
 Finally, we consider a random selection of genes to see if we see a distinct pattern between the two tumor types. If this is the case, then we either would need to conclude that all of the genes are impacted by the tumor type (which may be indicative of a potential batch effect), or that even a random sample is good at differentiating between the two tumor types. We randomly select 50 genes for this map. For a good comparison, we select the 50 "most significant" differntially expressed genes and create another heatmap to see if there is a difference between the two. In either, we use any gene selected in any fold, giving us ~250 randomly selected genes in the random heat map (possibly less if the same gene was selected in more than one fold).
 
-```{r heatmaps3, echo = FALSE, message = FALSE, eval=FALSE}
+```{r heatmaps3, echo = FALSE, message = FALSE}
 myMap(ss.rs1.rf, a1, titleIn = "50 Randomly Selected Genes", occur = 1)
 myMap(ss.ns1.rf, a1, titleIn = "50 Most Significant Genes - Occurs Once", occur = 1)
 ```
@@ -415,7 +415,7 @@ We do not see a clear distinction in the randomly selected genes. Rather, we see
 
 Finally, we consider the predictive ability of several methods using several approaches to selecting genes. Here, we use Random Forests, GLM Boosting, and Support Vector Machines. Within these, we use a selection procedure as used above on the heatmaps to determine which genes should be used in the model. Namely, we select all genes in a fold considered differntially expressed (p-value less than 0.000001, and 0.00001), the 50 genes with the smallest p-values, and 50 randomly sampled genes. We can see in Table \ref{tab:cvRes} the results. 
 
-```{r cvRes, echo = FALSE, eval=FALSE}
+```{r cvRes, echo = FALSE}
 library(knitr)
 kable(resMat, caption = "\\label{tab:cvRes}CV Results", align ='c')
 ```
